@@ -1,0 +1,44 @@
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# Database
+sqlalchemy==2.0.30
+alembic==1.13.1
+asyncpg==0.29.0          # async postgres driver
+psycopg2-binary==2.9.9   # sync driver for alembic migrations
+
+# Auth & Security
+python-jose[cryptography]==3.3.0   # JWT tokens
+bcrypt==4.0.1                      # direct bcrypt, no passlib
+python-multipart==0.0.9            # form data (login)
+
+# Config
+pydantic==2.7.1
+pydantic-settings==2.2.1
+python-dotenv==1.0.1
+
+# QR Code
+qrcode[pil]==7.4.2
+
+# SMS — Twilio
+twilio==9.0.5
+
+# Rate limiting
+slowapi==0.1.9
+redis==5.0.4             # for distributed rate limiting & caching
+
+# HTTP client (for wallet APIs)
+httpx==0.27.0
+
+# Utilities
+shortuuid==1.0.13        # human-friendly unique IDs
+pillow==10.3.0           # image processing (QR, logos)
+
+# Observability
+structlog==24.1.0        # structured JSON logging
+
+# Testing
+pytest==8.2.0
+pytest-asyncio==0.23.6
+httpx==0.27.0            # test client
