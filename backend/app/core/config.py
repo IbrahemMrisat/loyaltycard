@@ -6,7 +6,8 @@ Pydantic validates types and raises clear errors on startup if anything is missi
 """
 from functools import lru_cache
 from typing import List
-from pydantic import field_validator, PostgresDsn
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,7 +24,12 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     SECRET_KEY: str
-    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1","192.168.68.111"]
+    ALLOWED_HOSTS: List[str] = [
+        "localhost",
+        "127.0.0.1",
+        "api.listenonroads.com",
+        "loyaltycard-production-402e.up.railway.app",
+    ]
 
     # ── Database ─────────────────────────────────────────
     DATABASE_URL: str
@@ -59,6 +65,7 @@ class Settings(BaseSettings):
     FIRST_ADMIN_EMAIL: str
     FIRST_ADMIN_PASSWORD: str
 
+    # ── Validators ───────────────────────────────────────
     @field_validator("APP_ENV")
     @classmethod
     def validate_env(cls, v: str) -> str:
@@ -67,6 +74,17 @@ class Settings(BaseSettings):
             raise ValueError(f"APP_ENV must be one of {allowed}")
         return v
 
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def fix_database_url(cls, v: str) -> str:
+        """Railway provides postgresql:// — asyncpg needs postgresql+asyncpg://"""
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
+    # ── Properties ───────────────────────────────────────
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == "production"
@@ -79,10 +97,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """
-    Cached — instantiated once per process.
-    Use as a FastAPI dependency: settings = Depends(get_settings)
-    """
     return Settings()
 
 
