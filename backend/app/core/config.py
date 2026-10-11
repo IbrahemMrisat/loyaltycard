@@ -29,6 +29,8 @@ class Settings(BaseSettings):
         "127.0.0.1",
         "api.listenonroads.com",
         "loyaltycard-production-402e.up.railway.app",
+        "https://loyaltycard-omega.vercel.app",
+        "https://listenonroads.com",
     ]
 
     # ── Database ─────────────────────────────────────────
