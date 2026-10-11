@@ -1,6 +1,5 @@
 import { Html5Qrcode } from 'html5-qrcode';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { getCategoryById } from '../constants/categories';
 
@@ -16,7 +15,6 @@ interface StampResult {
 }
 
 export default function ScanPage() {
-  const navigate = useNavigate();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerStarted = useRef<boolean>(false);
   const isProcessing = useRef<boolean>(false);
