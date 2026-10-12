@@ -88,7 +88,8 @@ const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
   const category = getCategoryById(business.category);
 
   if (state === 'success' && card) {
-  const token = card.qr_url.split('/cards/')[1];
+  const parts = card.qr_url.split('/');
+  const token = parts[parts.length - 1];
   const isReturning = card.total_redeemed > 0;
 
   return (
