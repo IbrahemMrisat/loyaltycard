@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import BusinessOwner, CurrentUser, ManagerUser
+from app.core.dependencies import BusinessOwner, CurrentUser, ManagerUser, OwnerOnly
 from app.core.security import hash_password, sign_qr_token
 from app.db.session import get_db
 from app.models.all_models import (
@@ -93,7 +93,7 @@ async def get_my_business(
 @router.patch("/me", response_model=BusinessResponse)
 async def update_my_business(
     payload: BusinessUpdate,
-    current_user: BusinessOwner,
+    current_user: OwnerOnly,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     result = await db.execute(select(Business).where(Business.id == current_user.business_id))
