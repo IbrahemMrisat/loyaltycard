@@ -62,6 +62,12 @@ def msg_welcome_back(business_name: str, stamp_goal: int, card_url: str) -> str:
         f"Your card: {card_url}"
     )
 
+def msg_almost_there(business_name: str, card_url: str) -> str:
+    return (
+        f"🔥 You're one stamp away from your free reward at {business_name}!\n"
+        f"Come in one more time to claim it.\n"
+        f"Your card: {card_url}"
+    )
 
 def msg_stamp_added(
     business_name: str,
