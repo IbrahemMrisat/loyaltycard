@@ -28,8 +28,8 @@ export default function ScanPage() {
   const onScanSuccess = useCallback(async (decodedText: string) => {
     if (isProcessing.current) return;
 
-    const token = decodedText.includes('/cards/')
-      ? decodedText.split('/cards/')[1]
+    const token = decodedText.includes('/')
+      ? decodedText.split('/').pop() ?? decodedText
       : decodedText;
 
     if (!token || token === lastToken.current) return;
@@ -50,6 +50,7 @@ export default function ScanPage() {
     } catch (err: any) {
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail ?? '';
+      
 
       // Card is full — fetch card info and show redeem screen
       if (status === 409 && detail.includes('full')) {
