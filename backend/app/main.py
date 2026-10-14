@@ -62,7 +62,11 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.ALLOWED_HOSTS if settings.is_production else ["*"],
+        allow_origins=[
+        "https://loyaltycard-omega.vercel.app",
+        "https://listenonroads.com",
+        "http://localhost:5173",
+            ],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
