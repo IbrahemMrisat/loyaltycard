@@ -127,16 +127,11 @@ async def add_stamp(
     sms_sent = False
     if not customer.sms_opted_out:
         card_url = qr_service.build_card_url(card.id)
-        if card.stamp_count == 1:  # first stamp at this business
-            message = sms_service.msg_welcome(business.name, business.stamp_goal, card_url)
-        else:
-            message = sms_service.msg_stamp_added(
-                business.name, card.stamp_count, business.stamp_goal, card_url
-            )
-
+        message = sms_service.msg_stamp_added(
+            business.name, card.stamp_count, business.stamp_goal, card_url
+        )
         success, twilio_sid = await sms_service.send_sms(customer.phone, message)
         sms_sent = success
-
         sms_log = SmsLog(
             customer_id=customer.id,
             to_phone=customer.phone,
