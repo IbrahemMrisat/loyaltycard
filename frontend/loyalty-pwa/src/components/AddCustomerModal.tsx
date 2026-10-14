@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api/client';
+import PhoneInput from '../components/PhoneInput';
 
 interface Props {
   onClose: () => void;
@@ -56,14 +57,10 @@ export default function AddCustomerModal({ onClose, onSuccess }: Props) {
 
           <div className="space-y-1">
             <label className="text-slate-400 text-sm">Phone number</label>
-            <input
-              type="tel"
-              placeholder="+9721234567"
+            <PhoneInput
               value={phone}
-              onChange={e => setPhone(e.target.value)}
+              onChange={setPhone}
               required
-              autoFocus
-              className="w-full bg-[#0b0c10] border border-[#1e2130] rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500"
             />
           </div>
 

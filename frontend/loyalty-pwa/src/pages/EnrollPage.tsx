@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getCategoryById } from '../constants/categories';
+import PhoneInput from '../components/PhoneInput';
 
 interface Business {
   id: string;
@@ -156,13 +157,10 @@ const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 
           <div className="space-y-1">
             <label className="text-slate-400 text-sm">Phone number</label>
-            <input
-              type="tel"
-              placeholder="+1234567890"
+           <PhoneInput
               value={phone}
-              onChange={e => setPhone(e.target.value)}
+              onChange={setPhone}
               required
-              className="w-full bg-[#13151c] border border-[#1e2130] rounded-xl px-4 py-4 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500"
             />
           </div>
 
