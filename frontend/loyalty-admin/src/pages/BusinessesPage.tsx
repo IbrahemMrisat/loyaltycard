@@ -41,13 +41,16 @@ export default function BusinessesPage() {
     }
   }, [filter]);
 
-  useEffect(() => {
-    // Check for filter in URL
-    const params = new URLSearchParams(window.location.search);
-    const f = params.get('filter');
-    if (f) setFilter(f);
-    loadBusinesses();
-  }, [loadBusinesses]);
+ useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const f = params.get('filter');
+  if (f) setFilter(f);
+  window.history.replaceState({}, '', '/businesses'); // ← clean URL
+}, []);
+
+useEffect(() => {
+  loadBusinesses();
+}, [loadBusinesses]); // ← runs when filter changes
 
   const updateStatus = async (id: string, status: string, name: string) => {
     setActionLoading(id);
