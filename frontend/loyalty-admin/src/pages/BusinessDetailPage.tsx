@@ -18,9 +18,6 @@ interface Analytics {
   total_customers: number;
   total_stamps_issued: number;
   total_redemptions: number;
-  stamps_this_week: number;
-  stamps_this_month: number;
-  new_customers_this_month: number;
 }
 
 export default function BusinessDetailPage() {
@@ -40,9 +37,13 @@ export default function BusinessDetailPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await api.get('/admin/businesses');
-        const found = res.data.find((b: Business) => b.id === id);
+        const [bRes, aRes] = await Promise.all([
+          api.get('/admin/businesses'),
+          api.get(`/admin/businesses/${id}/analytics`),
+        ]);
+        const found = bRes.data.find((b: Business) => b.id === id);
         if (found) setBusiness(found);
+        setAnalytics(aRes.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -114,6 +115,24 @@ export default function BusinessDetailPage() {
 
       <div className="px-6 py-6 space-y-5">
 
+        {/* Analytics */}
+        {analytics && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-[#13151c] border border-[#1e2130] rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-sky-400">{analytics.total_customers}</p>
+              <p className="text-slate-500 text-xs mt-1">Customers</p>
+            </div>
+            <div className="bg-[#13151c] border border-[#1e2130] rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-purple-400">{analytics.total_stamps_issued}</p>
+              <p className="text-slate-500 text-xs mt-1">Stamps</p>
+            </div>
+            <div className="bg-[#13151c] border border-[#1e2130] rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-amber-400">{analytics.total_redemptions}</p>
+              <p className="text-slate-500 text-xs mt-1">Redeemed</p>
+            </div>
+          </div>
+        )}
+
         {/* Business info */}
         <div className="bg-[#13151c] border border-[#1e2130] rounded-xl p-5 space-y-3">
           <h2 className="text-slate-400 text-xs uppercase tracking-wide">Business Info</h2>
@@ -134,9 +153,9 @@ export default function BusinessDetailPage() {
               <span className="text-slate-500 text-sm">Stamp goal</span>
               <span className="text-white text-sm">{business.stamp_goal} stamps</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-start">
               <span className="text-slate-500 text-sm">Reward</span>
-              <span className="text-white text-sm text-right max-w-48">{business.reward_description}</span>
+              <span className="text-white text-sm text-right max-w-xs">{business.reward_description}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500 text-sm">Joined</span>
@@ -148,6 +167,7 @@ export default function BusinessDetailPage() {
         {/* Actions */}
         <div className="space-y-3">
           <h2 className="text-slate-400 text-xs uppercase tracking-wide">Actions</h2>
+
           {business.status === 'pending' && (
             <button
               onClick={() => updateStatus('active')}
@@ -157,6 +177,7 @@ export default function BusinessDetailPage() {
               {actionLoading ? 'Processing...' : '✅ Activate Business'}
             </button>
           )}
+
           {business.status === 'active' && (
             <button
               onClick={() => updateStatus('suspended')}
@@ -166,6 +187,7 @@ export default function BusinessDetailPage() {
               {actionLoading ? 'Processing...' : '🚫 Suspend Business'}
             </button>
           )}
+
           {business.status === 'suspended' && (
             <button
               onClick={() => updateStatus('active')}
@@ -175,6 +197,7 @@ export default function BusinessDetailPage() {
               {actionLoading ? 'Processing...' : '✅ Reactivate Business'}
             </button>
           )}
+
           {business.status !== 'pending' && (
             <button
               onClick={() => updateStatus('pending')}

@@ -69,12 +69,12 @@ export const CATEGORIES: BusinessCategory[] = [
     rewardPlaceholder: 'Free burger on your next visit!',
   },
   {
-    id: 'bar',
-    label: 'Bar',
-    emoji: '🍺',
-    stampEmoji: '🍺',
-    theme: { primary: '#fbbf24', accent: '#b45309', bg: '#1a1a0c' },
-    rewardPlaceholder: 'Free drink on your next visit!',
+    id: 'smoothie',
+    label: 'Smoothie Bar',
+    emoji: '🥤',
+    stampEmoji: '🥤',
+    theme: { primary: '#34d399', accent: '#059669', bg: '#0c2e1a' },
+    rewardPlaceholder: 'Free smoothie on your next visit!',
   },
   {
     id: 'nails',

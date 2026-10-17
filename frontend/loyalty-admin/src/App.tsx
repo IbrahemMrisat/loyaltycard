@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import BusinessesPage from './pages/BusinessesPage';
 import BusinessDetailPage from './pages/BusinessDetailPage';
+import AddBusinessPage from './pages/AddBusinessPage';
 
 export default function App() {
   return (
@@ -23,6 +24,11 @@ export default function App() {
         <Route path="/businesses/:id" element={
           <ProtectedRoute>
             <BusinessDetailPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/businesses/add" element={
+          <ProtectedRoute>
+            <AddBusinessPage />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

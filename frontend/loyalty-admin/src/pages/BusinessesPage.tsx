@@ -63,9 +63,11 @@ export default function BusinessesPage() {
   };
 
   const filtered = businesses.filter(b =>
-    b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.email.toLowerCase().includes(search.toLowerCase())
-  );
+  b.name.toLowerCase().includes(search.toLowerCase()) ||
+  b.email.toLowerCase().includes(search.toLowerCase()) ||
+  b.phone.includes(search) ||
+  b.category.toLowerCase().includes(search.toLowerCase())
+);
 
   const statusColor = (status: string) => {
     if (status === 'active') return 'bg-green-400/10 text-green-400';
@@ -100,6 +102,12 @@ export default function BusinessesPage() {
           className="text-slate-400 hover:text-white text-sm px-3 py-1 border border-[#1e2130] rounded-lg transition disabled:opacity-50"
         >
           ↻ Refresh
+        </button>
+        <button
+          onClick={() => navigate('/businesses/add')}
+          className="bg-sky-400 hover:bg-sky-300 text-[#0b0c10] font-bold text-sm px-3 py-2 rounded-lg transition"
+        >
+          + Add
         </button>
       </div>
 
