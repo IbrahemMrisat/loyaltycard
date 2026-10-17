@@ -31,6 +31,7 @@ class Settings(BaseSettings):
         "loyaltycard-production-402e.up.railway.app",
         "https://loyaltycard-omega.vercel.app",
         "https://listenonroads.com",
+        "https://loyaltycard-9bny-three.vercel.app"
     ]
 
     # ── Database ─────────────────────────────────────────
