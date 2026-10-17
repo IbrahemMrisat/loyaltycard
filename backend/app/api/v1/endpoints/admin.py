@@ -3,6 +3,7 @@ app/api/v1/endpoints/admin.py
 ------------------------------
 Platform admin operations. All routes require admin role.
 """
+import uuid
 from typing import Annotated
 
 import structlog
@@ -12,8 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import AdminUser
 from app.db.session import get_db
-from app.models.all_models import Business, BusinessStatus, Customer, LoyaltyCard, SmsLog, Transaction, User
+from app.models.all_models import Business, BusinessStatus, Customer, LoyaltyCard, SmsLog, User
 from app.schemas.all_schemas import (
+    BusinessAnalytics,
     BusinessResponse,
     BusinessStatusUpdate,
     OKResponse,
@@ -41,7 +43,9 @@ async def list_businesses(
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid status: {status_filter}")
 
-    result = await db.execute(query.order_by(Business.created_at.desc()).offset(skip).limit(limit))
+    result = await db.execute(
+        query.order_by(Business.created_at.desc()).offset(skip).limit(limit)
+    )
     return [BusinessResponse.model_validate(b) for b in result.scalars().all()]
 
 
@@ -54,8 +58,6 @@ async def update_business_status(
     admin: AdminUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Activate, suspend, or set pending."""
-    import uuid
     try:
         bid = uuid.UUID(business_id)
     except ValueError:
@@ -78,6 +80,44 @@ async def update_business_status(
         by_admin=str(admin.id),
     )
     return BusinessResponse.model_validate(business)
+
+
+# ── GET /admin/businesses/{id}/analytics ─────────────────────────────────────
+
+@router.get("/businesses/{business_id}/analytics", response_model=BusinessAnalytics)
+async def get_business_analytics(
+    business_id: str,
+    admin: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    try:
+        bid = uuid.UUID(business_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid business ID")
+
+    business = await db.scalar(select(Business).where(Business.id == bid))
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+
+    total_customers = await db.scalar(
+        select(func.count()).select_from(LoyaltyCard).where(LoyaltyCard.business_id == bid)
+    )
+    total_stamps = await db.scalar(
+        select(func.sum(LoyaltyCard.total_stamps_ever)).where(LoyaltyCard.business_id == bid)
+    )
+    total_redeemed = await db.scalar(
+        select(func.sum(LoyaltyCard.total_redeemed)).where(LoyaltyCard.business_id == bid)
+    )
+
+    return BusinessAnalytics(
+        business_id=bid,
+        total_customers=total_customers or 0,
+        total_stamps_issued=int(total_stamps or 0),
+        total_redemptions=int(total_redeemed or 0),
+        stamps_this_week=0,
+        stamps_this_month=0,
+        new_customers_this_month=0,
+    )
 
 
 # ── GET /admin/analytics ──────────────────────────────────────────────────────
