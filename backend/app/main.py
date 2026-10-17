@@ -65,7 +65,8 @@ def create_app() -> FastAPI:
         allow_origins=[
         "https://loyaltycard-omega.vercel.app",
         "https://listenonroads.com",
-        "http://localhost:5173",
+        "http://localhost",
+        "https://loyaltycard-9bny-three.vercel.app"
             ],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
