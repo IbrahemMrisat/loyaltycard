@@ -44,7 +44,7 @@ def ensure_loyalty_class(
     logo_url: str | None = None,
 ) -> str:
     """
-    Create or update the loyalty class for this business.
+    Create the loyalty class for this business if it doesn't exist.
     Returns the class ID.
     """
     class_id = _class_id(business_id)
@@ -67,9 +67,7 @@ def ensure_loyalty_class(
     }
     try:
         client.loyaltyclass().get(resourceId=class_id).execute()
-        # Class exists — skip patch to avoid reviewStatus conflicts with Google
-        pass
-        log.info("wallet_class_updated", class_id=class_id)
+        log.info("wallet_class_exists", class_id=class_id)
     except HttpError as e:
         if e.resp.status == 404:
             client.loyaltyclass().insert(body=loyalty_class).execute()
@@ -169,7 +167,7 @@ async def create_or_update_pass(
     try:
         client = get_wallet_client()
 
-        # Ensure per-business class exists / is up to date
+        # Ensure per-business class exists
         ensure_loyalty_class(client, business_id, business_name, logo_url)
 
         object_id = f"{settings.GOOGLE_WALLET_ISSUER_ID}.card_{card_id.replace('-', '_')}"
@@ -187,10 +185,11 @@ async def create_or_update_pass(
 
         try:
             client.loyaltyobject().get(resourceId=object_id).execute()
-            # Object exists — patch only the fields that change
+            # Object exists — patch stamps, progress, and force classId to new per-business class
             client.loyaltyobject().patch(
                 resourceId=object_id,
                 body={
+                    "classId": _class_id(business_id),
                     "loyaltyPoints": {
                         "balance": {"string": f"{stamp_count}/{stamp_goal}"},
                         "label": "Stamps",
