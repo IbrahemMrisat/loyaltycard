@@ -35,17 +35,6 @@ def ensure_loyalty_class(client):
         "issuerName": "Loyally",
         "reviewStatus": "underReview",
         "programName": "Loyalty Program",
-        "programLogo": {
-            "sourceUri": {
-                "uri": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png"
-            },
-            "contentDescription": {
-                "defaultValue": {
-                    "language": "en-US",
-                    "value": "Loyally Logo"
-                }
-            }
-            },
     }
     try:
         client.loyaltyclass().get(resourceId=settings.GOOGLE_WALLET_CLASS_ID).execute()
@@ -56,7 +45,6 @@ def ensure_loyalty_class(client):
             log.info("wallet_class_created")
         else:
             raise
-
 
 def build_loyalty_object(
     card_id: str,
