@@ -2,6 +2,7 @@
 app/services/wallet_service.py
 -------------------------------
 Google Wallet integration — creates and updates loyalty passes.
+One loyalty CLASS per business, one loyalty OBJECT per customer card.
 """
 import json
 import time
@@ -17,6 +18,8 @@ log = structlog.get_logger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/wallet_object.issuer"]
 
+DEFAULT_LOGO = "https://via.placeholder.com/300x300.png"
+
 
 def get_wallet_client():
     """Build authenticated Google Wallet API client."""
@@ -28,40 +31,65 @@ def get_wallet_client():
     return build("walletobjects", "v1", credentials=credentials)
 
 
-def ensure_loyalty_class(client):
-    """Create the loyalty class if it doesn't exist."""
+def _class_id(business_id: str) -> str:
+    """Deterministic class ID for a given business."""
+    safe = str(business_id).replace("-", "_")
+    return f"{settings.GOOGLE_WALLET_ISSUER_ID}.business_{safe}"
+
+
+def ensure_loyalty_class(
+    client,
+    business_id: str,
+    business_name: str,
+    logo_url: str | None = None,
+) -> str:
+    """
+    Create or update the loyalty class for this business.
+    Returns the class ID.
+    """
+    class_id = _class_id(business_id)
     loyalty_class = {
-        "id": settings.GOOGLE_WALLET_CLASS_ID,
+        "id": class_id,
         "issuerName": "Loyally",
         "reviewStatus": "underReview",
-        "programName": "Loyalty Program",
+        "programName": business_name,
         "programLogo": {
             "sourceUri": {
-                  "uri": "https://via.placeholder.com/150x150.png"
+                "uri": logo_url or DEFAULT_LOGO,
             },
             "contentDescription": {
                 "defaultValue": {
                     "language": "en-US",
-                    "value": "Loyally Logo"
+                    "value": f"{business_name} Logo",
                 }
-            }
             },
+        },
     }
     try:
-        client.loyaltyclass().get(resourceId=settings.GOOGLE_WALLET_CLASS_ID).execute()
-        log.info("wallet_class_exists")
+        client.loyaltyclass().get(resourceId=class_id).execute()
+        # Class exists — patch name/logo in case they changed
+        client.loyaltyclass().patch(
+            resourceId=class_id,
+            body={
+                "programName": business_name,
+                "programLogo": loyalty_class["programLogo"],
+            },
+        ).execute()
+        log.info("wallet_class_updated", class_id=class_id)
     except HttpError as e:
         if e.resp.status == 404:
             client.loyaltyclass().insert(body=loyalty_class).execute()
-            log.info("wallet_class_created")
+            log.info("wallet_class_created", class_id=class_id)
         else:
             raise
+    return class_id
 
 
 def build_loyalty_object(
     card_id: str,
     customer_phone: str,
     customer_name: str,
+    business_id: str,
     business_name: str,
     stamp_count: int,
     stamp_goal: int,
@@ -70,10 +98,11 @@ def build_loyalty_object(
 ) -> dict:
     """Build a loyalty object for a specific customer card."""
     object_id = f"{settings.GOOGLE_WALLET_ISSUER_ID}.card_{card_id.replace('-', '_')}"
+    class_id = _class_id(business_id)
 
     return {
         "id": object_id,
-        "classId": settings.GOOGLE_WALLET_CLASS_ID,
+        "classId": class_id,
         "accountId": customer_phone,
         "accountName": customer_name or customer_phone,
         "state": "active",
@@ -81,34 +110,25 @@ def build_loyalty_object(
             "balance": {
                 "string": f"{stamp_count}/{stamp_goal}"
             },
-            "label": "Stamps"
+            "label": "Stamps",
         },
         "barcode": {
             "type": "QR_CODE",
             "value": qr_url,
-            "alternateText": "Show at counter"
+            "alternateText": "Show at counter",
         },
         "textModulesData": [
             {
-                "id": "business",
-                "header": business_name,
+                "id": "reward",
+                "header": "Reward",
                 "body": reward_description,
             },
             {
                 "id": "progress",
                 "header": "Progress",
                 "body": f"{stamp_count} of {stamp_goal} stamps collected",
-            }
+            },
         ],
-        "linksModuleData": {
-            "uris": [
-                {
-                    "uri": qr_url,
-                    "description": "View your loyalty card",
-                    "id": "card_link"
-                }
-            ]
-        }
     }
 
 
@@ -126,13 +146,13 @@ def generate_wallet_jwt(loyalty_object: dict) -> str:
         "typ": "savetowallet",
         "payload": {
             "loyaltyObjects": [loyalty_object]
-        }
+        },
     }
 
     return pyjwt.encode(
         claims,
         credentials_info["private_key"],
-        algorithm="RS256"
+        algorithm="RS256",
     )
 
 
@@ -140,30 +160,37 @@ async def create_or_update_pass(
     card_id: str,
     customer_phone: str,
     customer_name: str,
+    business_id: str,
     business_name: str,
+    logo_url: str | None,
     stamp_count: int,
     stamp_goal: int,
     reward_description: str,
     qr_url: str,
 ) -> str | None:
     """
-    Creates a new pass or updates existing one.
+    Creates a new pass or updates an existing one.
     Returns the 'Add to Wallet' JWT URL or None on failure.
     """
     try:
         client = get_wallet_client()
 
-        # Ensure the loyalty class exists
-        ensure_loyalty_class(client)
+        # Ensure per-business class exists / is up to date
+        ensure_loyalty_class(client, business_id, business_name, logo_url)
 
         object_id = f"{settings.GOOGLE_WALLET_ISSUER_ID}.card_{card_id.replace('-', '_')}"
         loyalty_object = build_loyalty_object(
-            card_id, customer_phone, customer_name,
-            business_name, stamp_count, stamp_goal,
-            reward_description, qr_url
+            card_id=card_id,
+            customer_phone=customer_phone,
+            customer_name=customer_name,
+            business_id=business_id,
+            business_name=business_name,
+            stamp_count=stamp_count,
+            stamp_goal=stamp_goal,
+            reward_description=reward_description,
+            qr_url=qr_url,
         )
 
-        # Try to get existing object
         try:
             client.loyaltyobject().get(resourceId=object_id).execute()
             # Object exists — patch only the fields that change
@@ -171,30 +198,31 @@ async def create_or_update_pass(
                 resourceId=object_id,
                 body={
                     "loyaltyPoints": {
-                        "balance": {
-                            "string": f"{stamp_count}/{stamp_goal}"
-                        },
-                        "label": "Stamps"
+                        "balance": {"string": f"{stamp_count}/{stamp_goal}"},
+                        "label": "Stamps",
                     },
                     "textModulesData": [
+                        {
+                            "id": "reward",
+                            "header": "Reward",
+                            "body": reward_description,
+                        },
                         {
                             "id": "progress",
                             "header": "Progress",
                             "body": f"{stamp_count} of {stamp_goal} stamps collected",
-                        }
+                        },
                     ],
-                }
+                },
             ).execute()
             log.info("wallet_pass_updated", card_id=card_id)
         except HttpError as e:
             if e.resp.status == 404:
-                # Object doesn't exist — create it
                 client.loyaltyobject().insert(body=loyalty_object).execute()
                 log.info("wallet_pass_created", card_id=card_id)
             else:
                 raise Exception(f"HttpError {e.resp.status}: {e.content}")
 
-        # Generate JWT for "Add to Wallet" button
         wallet_jwt = generate_wallet_jwt(loyalty_object)
         return f"https://pay.google.com/gp/v/save/{wallet_jwt}"
 
