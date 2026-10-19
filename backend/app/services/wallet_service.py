@@ -6,8 +6,6 @@ Google Wallet integration — creates and updates loyalty passes.
 import json
 import time
 import traceback
-import uuid
-
 import structlog
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -28,6 +26,36 @@ def get_wallet_client():
         scopes=SCOPES,
     )
     return build("walletobjects", "v1", credentials=credentials)
+
+
+def ensure_loyalty_class(client):
+    """Create the loyalty class if it doesn't exist."""
+    loyalty_class = {
+        "id": settings.GOOGLE_WALLET_CLASS_ID,
+        "issuerName": "Loyally",
+        "reviewStatus": "underReview",
+        "programName": "Loyalty Program",
+        "programLogo": {
+            "sourceUri": {
+                "uri": "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"
+            },
+            "contentDescription": {
+                "defaultValue": {
+                    "language": "en-US",
+                    "value": "Loyally Logo"
+                }
+            }
+        },
+    }
+    try:
+        client.loyaltyclass().get(resourceId=settings.GOOGLE_WALLET_CLASS_ID).execute()
+        log.info("wallet_class_exists")
+    except HttpError as e:
+        if e.resp.status == 404:
+            client.loyaltyclass().insert(body=loyalty_class).execute()
+            log.info("wallet_class_created")
+        else:
+            raise
 
 
 def build_loyalty_object(
@@ -124,6 +152,10 @@ async def create_or_update_pass(
     """
     try:
         client = get_wallet_client()
+
+        # Ensure the loyalty class exists
+        ensure_loyalty_class(client)
+
         object_id = f"{settings.GOOGLE_WALLET_ISSUER_ID}.card_{card_id.replace('-', '_')}"
         loyalty_object = build_loyalty_object(
             card_id, customer_phone, customer_name,
