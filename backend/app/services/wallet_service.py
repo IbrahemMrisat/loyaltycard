@@ -5,15 +5,13 @@ Google Wallet integration — creates and updates loyalty passes.
 """
 import json
 import time
+import traceback
 import uuid
 
-import google.auth
-import google.auth.transport.requests
+import structlog
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-
-import structlog
 
 from app.core.config import settings
 
@@ -30,29 +28,6 @@ def get_wallet_client():
         scopes=SCOPES,
     )
     return build("walletobjects", "v1", credentials=credentials)
-
-
-def build_loyalty_class():
-    """Define the loyalty card class template."""
-    return {
-        "id": settings.GOOGLE_WALLET_CLASS_ID,
-        "issuerName": "Loyally",
-        "reviewStatus": "underReview",
-        "programName": "Loyalty Card",
-        "programLogo": {
-            "sourceUri": {
-                "uri": "https://loyaltycard-omega.vercel.app/logo.png"
-            },
-            "contentDescription": {
-                "defaultValue": {
-                    "language": "en-US",
-                    "value": "Loyally Logo"
-                }
-            }
-        },
-        "rewardsTier": "base",
-        "rewardsTierLabel": "Member",
-    }
 
 
 def build_loyalty_object(
@@ -109,6 +84,30 @@ def build_loyalty_object(
     }
 
 
+def generate_wallet_jwt(loyalty_object: dict) -> str:
+    """Generate a signed JWT for the Save to Wallet button."""
+    import jwt as pyjwt
+
+    credentials_info = json.loads(settings.GOOGLE_WALLET_CREDENTIALS)
+
+    claims = {
+        "iss": credentials_info["client_email"],
+        "aud": "google",
+        "origins": ["https://loyaltycard-omega.vercel.app"],
+        "iat": int(time.time()),
+        "typ": "savetowallet",
+        "payload": {
+            "loyaltyObjects": [loyalty_object]
+        }
+    }
+
+    return pyjwt.encode(
+        claims,
+        credentials_info["private_key"],
+        algorithm="RS256"
+    )
+
+
 async def create_or_update_pass(
     card_id: str,
     customer_phone: str,
@@ -147,38 +146,11 @@ async def create_or_update_pass(
                 client.loyaltyobject().insert(body=loyalty_object).execute()
                 log.info("wallet_pass_created", card_id=card_id)
             else:
-                raise
+                raise Exception(f"HttpError {e.resp.status}: {e.content}")
 
         # Generate JWT for "Add to Wallet" button
         wallet_jwt = generate_wallet_jwt(loyalty_object)
         return f"https://pay.google.com/gp/v/save/{wallet_jwt}"
 
     except Exception as e:
-        import traceback
-        log.error("wallet_error", error=str(e), card_id=card_id)
-        print(f"WALLET ERROR FULL: {traceback.format_exc()}")
-        return None
-
-
-def generate_wallet_jwt(loyalty_object: dict) -> str:
-    """Generate a signed JWT for the Save to Wallet button."""
-    import jwt as pyjwt
-
-    credentials_info = json.loads(settings.GOOGLE_WALLET_CREDENTIALS)
-
-    claims = {
-        "iss": credentials_info["client_email"],
-        "aud": "google",
-        "origins": ["https://loyaltycard-omega.vercel.app"],
-        "iat": int(time.time()),
-        "typ": "savetowallet",
-        "payload": {
-            "loyaltyObjects": [loyalty_object]
-        }
-    }
-
-    return pyjwt.encode(
-        claims,
-        credentials_info["private_key"],
-        algorithm="RS256"
-    )
+        raise Exception(f"Wallet service error: {str(e)} | {traceback.format_exc()}")
