@@ -166,10 +166,24 @@ async def create_or_update_pass(
         # Try to get existing object
         try:
             client.loyaltyobject().get(resourceId=object_id).execute()
-            # Object exists — update it
+            # Object exists — patch only the fields that change
             client.loyaltyobject().patch(
                 resourceId=object_id,
-                body=loyalty_object
+                body={
+                    "loyaltyPoints": {
+                        "balance": {
+                            "string": f"{stamp_count}/{stamp_goal}"
+                        },
+                        "label": "Stamps"
+                    },
+                    "textModulesData": [
+                        {
+                            "id": "progress",
+                            "header": "Progress",
+                            "body": f"{stamp_count} of {stamp_goal} stamps collected",
+                        }
+                    ],
+                }
             ).execute()
             log.info("wallet_pass_updated", card_id=card_id)
         except HttpError as e:
