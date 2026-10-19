@@ -37,7 +37,7 @@ def ensure_loyalty_class(client):
         "programName": "Loyalty Program",
         "programLogo": {
             "sourceUri": {
-                "uri": "https://storage.googleapis.com/wallet-lab-tools-codelab-artifacts-public/pass_google_logo.jpg"
+                "uri": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png"
             },
             "contentDescription": {
                 "defaultValue": {
@@ -45,7 +45,7 @@ def ensure_loyalty_class(client):
                     "value": "Loyally Logo"
                 }
             }
-        },
+            },
     }
     try:
         client.loyaltyclass().get(resourceId=settings.GOOGLE_WALLET_CLASS_ID).execute()
