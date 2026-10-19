@@ -88,9 +88,13 @@ def ensure_loyalty_class(
 
     try:
         client.loyaltyclass().get(resourceId=class_id).execute()
-        # Class exists — patch safe fields only
-        client.loyaltyclass().patch(resourceId=class_id, body=patch_body).execute()
-        log.info("wallet_class_updated", class_id=class_id)
+        # Class exists — patch safe fields only (never include reviewStatus in patch)
+        try:
+            client.loyaltyclass().patch(resourceId=class_id, body=patch_body).execute()
+            log.info("wallet_class_updated", class_id=class_id)
+        except HttpError as patch_err:
+            # Log but don't fail — card still works with old class fields
+            log.warning("wallet_class_patch_failed", class_id=class_id, error=str(patch_err))
     except HttpError as e:
         if e.resp.status == 404:
             client.loyaltyclass().insert(body=insert_body).execute()
