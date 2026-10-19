@@ -52,6 +52,7 @@ def ensure_loyalty_class(
         "id": class_id,
         "issuerName": "Loyally",
         "reviewStatus": "underReview",
+        "hexBackgroundColor": "#1B4332",  # default orange
         "programName": business_name,
         "programLogo": {
             "sourceUri": {
