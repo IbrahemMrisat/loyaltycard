@@ -2,7 +2,7 @@
 app/services/wallet_service.py
 -------------------------------
 Google Wallet integration — creates and updates loyalty passes.
-One loyalty CLASS per business, one loyalty OBJECT per customer card.
+One loyalty CLASS per business (name, logo, bg color), one loyalty OBJECT per customer card.
 """
 import json
 import time
@@ -19,6 +19,7 @@ log = structlog.get_logger(__name__)
 SCOPES = ["https://www.googleapis.com/auth/wallet_object.issuer"]
 
 DEFAULT_LOGO = "https://via.placeholder.com/300x300.png"
+DEFAULT_BG_COLOR = "#F97316"  # Orange fallback
 
 
 def get_wallet_client():
@@ -42,22 +43,25 @@ def ensure_loyalty_class(
     business_id: str,
     business_name: str,
     logo_url: str | None = None,
+    bg_color: str | None = None,
 ) -> str:
     """
     Create the loyalty class for this business if it doesn't exist.
+    If it exists, patch updatable fields (logo, bg color) — but NOT reviewStatus.
     Returns the class ID.
     """
     class_id = _class_id(business_id)
-    loyalty_class = {
+    resolved_logo = logo_url or DEFAULT_LOGO
+    resolved_bg = bg_color or DEFAULT_BG_COLOR
+
+    insert_body = {
         "id": class_id,
         "issuerName": "Loyally",
         "reviewStatus": "underReview",
-        "hexBackgroundColor": "#1B4332",  # default orange
         "programName": business_name,
+        "hexBackgroundColor": resolved_bg,
         "programLogo": {
-            "sourceUri": {
-                "uri": logo_url or DEFAULT_LOGO,
-            },
+            "sourceUri": {"uri": resolved_logo},
             "contentDescription": {
                 "defaultValue": {
                     "language": "en-US",
@@ -66,16 +70,70 @@ def ensure_loyalty_class(
             },
         },
     }
+
+    # Patch body — everything EXCEPT reviewStatus (Google rejects patching an approved class)
+    patch_body = {
+        "programName": business_name,
+        "hexBackgroundColor": resolved_bg,
+        "programLogo": {
+            "sourceUri": {"uri": resolved_logo},
+            "contentDescription": {
+                "defaultValue": {
+                    "language": "en-US",
+                    "value": f"{business_name} Logo",
+                }
+            },
+        },
+    }
+
     try:
         client.loyaltyclass().get(resourceId=class_id).execute()
-        log.info("wallet_class_exists", class_id=class_id)
+        # Class exists — patch safe fields only
+        client.loyaltyclass().patch(resourceId=class_id, body=patch_body).execute()
+        log.info("wallet_class_updated", class_id=class_id)
     except HttpError as e:
         if e.resp.status == 404:
-            client.loyaltyclass().insert(body=loyalty_class).execute()
+            client.loyaltyclass().insert(body=insert_body).execute()
             log.info("wallet_class_created", class_id=class_id)
         else:
             raise
     return class_id
+
+
+def _reward_ready_modules(reward_description: str, stamp_goal: int) -> list:
+    """Text modules shown when the card is full and reward is claimable."""
+    return [
+        {
+            "id": "reward",
+            "header": "🎁 Reward Ready to Claim!",
+            "body": reward_description,
+        },
+        {
+            "id": "progress",
+            "header": "Status",
+            "body": f"You've collected all {stamp_goal} stamps — show this to the cashier!",
+        },
+    ]
+
+
+def _in_progress_modules(reward_description: str, stamp_count: int, stamp_goal: int) -> list:
+    """Text modules shown while the customer is collecting stamps."""
+    remaining = stamp_goal - stamp_count
+    return [
+        {
+            "id": "reward",
+            "header": "Your Reward",
+            "body": reward_description,
+        },
+        {
+            "id": "progress",
+            "header": "Progress",
+            "body": (
+                f"{stamp_count} of {stamp_goal} stamps collected — "
+                f"{remaining} more to go!"
+            ),
+        },
+    ]
 
 
 def build_loyalty_object(
@@ -83,7 +141,6 @@ def build_loyalty_object(
     customer_phone: str,
     customer_name: str,
     business_id: str,
-    business_name: str,
     stamp_count: int,
     stamp_goal: int,
     reward_description: str,
@@ -92,6 +149,7 @@ def build_loyalty_object(
     """Build a loyalty object for a specific customer card."""
     object_id = f"{settings.GOOGLE_WALLET_ISSUER_ID}.card_{card_id.replace('-', '_')}"
     class_id = _class_id(business_id)
+    reward_ready = stamp_count >= stamp_goal
 
     return {
         "id": object_id,
@@ -100,28 +158,19 @@ def build_loyalty_object(
         "accountName": customer_name or customer_phone,
         "state": "active",
         "loyaltyPoints": {
-            "balance": {
-                "string": f"{stamp_count}/{stamp_goal}"
-            },
-            "label": "Stamps",
+            "balance": {"string": f"{stamp_count}/{stamp_goal}"},
+            "label": "🎁 Reward Ready!" if reward_ready else "Stamps",
         },
         "barcode": {
             "type": "QR_CODE",
             "value": qr_url,
             "alternateText": "Show at counter",
         },
-        "textModulesData": [
-            {
-                "id": "reward",
-                "header": "Reward",
-                "body": reward_description,
-            },
-            {
-                "id": "progress",
-                "header": "Progress",
-                "body": f"{stamp_count} of {stamp_goal} stamps collected",
-            },
-        ],
+        "textModulesData": (
+            _reward_ready_modules(reward_description, stamp_goal)
+            if reward_ready
+            else _in_progress_modules(reward_description, stamp_count, stamp_goal)
+        ),
     }
 
 
@@ -156,10 +205,11 @@ async def create_or_update_pass(
     business_id: str,
     business_name: str,
     logo_url: str | None,
-    stamp_count: int,
-    stamp_goal: int,
-    reward_description: str,
-    qr_url: str,
+    bg_color: str | None = None,
+    stamp_count: int = 0,
+    stamp_goal: int = 10,
+    reward_description: str = "",
+    qr_url: str = "",
 ) -> str | None:
     """
     Creates a new pass or updates an existing one.
@@ -168,48 +218,43 @@ async def create_or_update_pass(
     try:
         client = get_wallet_client()
 
-        # Ensure per-business class exists
-        ensure_loyalty_class(client, business_id, business_name, logo_url)
+        # Ensure per-business class exists and is up to date (logo, bg color)
+        ensure_loyalty_class(client, business_id, business_name, logo_url, bg_color)
 
         object_id = f"{settings.GOOGLE_WALLET_ISSUER_ID}.card_{card_id.replace('-', '_')}"
+        reward_ready = stamp_count >= stamp_goal
+
         loyalty_object = build_loyalty_object(
             card_id=card_id,
             customer_phone=customer_phone,
             customer_name=customer_name,
             business_id=business_id,
-            business_name=business_name,
             stamp_count=stamp_count,
             stamp_goal=stamp_goal,
             reward_description=reward_description,
             qr_url=qr_url,
         )
 
+        patch_body = {
+            "classId": _class_id(business_id),
+            "loyaltyPoints": {
+                "balance": {"string": f"{stamp_count}/{stamp_goal}"},
+                "label": "🎁 Reward Ready!" if reward_ready else "Stamps",
+            },
+            "textModulesData": (
+                _reward_ready_modules(reward_description, stamp_goal)
+                if reward_ready
+                else _in_progress_modules(reward_description, stamp_count, stamp_goal)
+            ),
+        }
+
         try:
             client.loyaltyobject().get(resourceId=object_id).execute()
-            # Object exists — patch stamps, progress, and force classId to new per-business class
             client.loyaltyobject().patch(
                 resourceId=object_id,
-                body={
-                    "classId": _class_id(business_id),
-                    "loyaltyPoints": {
-                        "balance": {"string": f"{stamp_count}/{stamp_goal}"},
-                        "label": "Stamps",
-                    },
-                    "textModulesData": [
-                        {
-                            "id": "reward",
-                            "header": "Reward",
-                            "body": reward_description,
-                        },
-                        {
-                            "id": "progress",
-                            "header": "Progress",
-                            "body": f"{stamp_count} of {stamp_goal} stamps collected",
-                        },
-                    ],
-                },
+                body=patch_body,
             ).execute()
-            log.info("wallet_pass_updated", card_id=card_id)
+            log.info("wallet_pass_updated", card_id=card_id, reward_ready=reward_ready)
         except HttpError as e:
             if e.resp.status == 404:
                 client.loyaltyobject().insert(body=loyalty_object).execute()
