@@ -67,14 +67,8 @@ def ensure_loyalty_class(
     }
     try:
         client.loyaltyclass().get(resourceId=class_id).execute()
-        # Class exists — patch name/logo in case they changed
-        client.loyaltyclass().patch(
-            resourceId=class_id,
-            body={
-                "programName": business_name,
-                "programLogo": loyalty_class["programLogo"],
-            },
-        ).execute()
+        # Class exists — skip patch to avoid reviewStatus conflicts with Google
+        pass
         log.info("wallet_class_updated", class_id=class_id)
     except HttpError as e:
         if e.resp.status == 404:
