@@ -154,7 +154,9 @@ async def create_or_update_pass(
         return f"https://pay.google.com/gp/v/save/{wallet_jwt}"
 
     except Exception as e:
+        import traceback
         log.error("wallet_error", error=str(e), card_id=card_id)
+        print(f"WALLET ERROR FULL: {traceback.format_exc()}")
         return None
 
 
