@@ -37,7 +37,7 @@ def ensure_loyalty_class(client):
         "programName": "Loyalty Program",
         "programLogo": {
             "sourceUri": {
-                "uri": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png"
+                  "uri": "https://via.placeholder.com/150x150.png"
             },
             "contentDescription": {
                 "defaultValue": {
