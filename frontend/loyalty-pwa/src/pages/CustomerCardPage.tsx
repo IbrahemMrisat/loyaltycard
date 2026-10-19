@@ -25,6 +25,7 @@ export default function CustomerCardPage() {
   const [toast, setToast] = useState('');
   const [walletUrl, setWalletUrl] = useState<string | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [walletAdded, setWalletAdded] = useState(false);
 
   const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 
@@ -66,6 +67,9 @@ export default function CustomerCardPage() {
       if (!res.ok) throw new Error('Wallet unavailable');
       const data = await res.json();
       setWalletUrl(data.wallet_url);
+      // Check if already added on this device
+      const added = localStorage.getItem(`wallet_added_${token}`);
+      if (added) setWalletAdded(true);
     } catch {
       // Wallet unavailable — hide button silently
     } finally {
@@ -181,9 +185,9 @@ export default function CustomerCardPage() {
           <p className="text-slate-600 text-xs">Updates automatically</p>
         </div>
 
-        {/* Add to Google Wallet */}
+        {/* Add to / View in Google Wallet */}
         {walletLoading && (
-          <div className="flex justify-center">
+          <div className="flex justify-center py-2">
             <div className="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
@@ -192,21 +196,27 @@ export default function CustomerCardPage() {
             href={walletUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full bg-[#1a1a1a] hover:bg-[#222] border border-[#333] rounded-xl py-3 px-4 transition"
+            onClick={() => {
+              localStorage.setItem(`wallet_added_${token}`, '1');
+              setWalletAdded(true);
+            }}
+            className="flex items-center justify-center gap-3 w-full bg-[#1a1a1a] hover:bg-[#222] border border-[#333] rounded-xl py-3 px-4 transition"
           >
-            {/* Official Google Wallet SVG logo */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Official Google Wallet logo */}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0z" fill="#1a73e8"/>
               <path d="M17.5 7h-11A1.5 1.5 0 0 0 5 8.5v7A1.5 1.5 0 0 0 6.5 17h11a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 17.5 7z" fill="white"/>
               <path d="M9 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill="#1a73e8"/>
               <path d="M15 11h-3v1h3v-1zM15 13h-3v1h3v-1z" fill="#1a73e8"/>
             </svg>
-            <span className="text-white font-medium text-sm">Add to Google Wallet</span>
+            <span className="text-white font-medium text-sm">
+              {walletAdded ? 'View in Google Wallet' : 'Add to Google Wallet'}
+            </span>
           </a>
         )}
 
         {/* Stats */}
-        <div className="text-center text-slate-600 text-xs">
+        <div className="text-center text-slate-600 text-xs pb-4">
           Total rewards redeemed: {card.total_redeemed}
         </div>
 
