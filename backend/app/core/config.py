@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str
     TWILIO_PHONE_NUMBER: str
 
+    # ── Google Wallet ─────────────────────────────────────────────────
+    GOOGLE_WALLET_CREDENTIALS: str = ""
+    GOOGLE_WALLET_ISSUER_ID: str = ""
+    GOOGLE_WALLET_CLASS_ID: str = ""
+
     # ── QR ───────────────────────────────────────────────
     QR_BASE_URL: str
     QR_SECRET_KEY: str
