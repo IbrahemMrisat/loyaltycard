@@ -10,12 +10,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from fastapi import Depends
+import uuid
 
 from app.core.security import verify_qr_token
 from app.db.session import get_db
 from app.models.all_models import Business, Customer, LoyaltyCard, Transaction
 from app.schemas.all_schemas import LoyaltyCardResponse, TransactionResponse
 from app.services.qr_service import build_card_url
+from app.services.wallet_service import create_or_update_pass
+from app.models.all_models import Business, Customer
 
 router = APIRouter(prefix="/cards", tags=["cards"])
 
@@ -84,3 +87,43 @@ async def get_card_history(
         .limit(50)
     )
     return [TransactionResponse.model_validate(t) for t in result.scalars().all()]
+
+
+@router.get("/{qr_token}/wallet")
+async def get_wallet_pass(
+    qr_token: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Returns Google Wallet 'Add to Pass' URL for the customer card."""
+    card_id_str = verify_qr_token(qr_token)
+    if not card_id_str:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    card_id = uuid.UUID(card_id_str)
+
+    result = await db.execute(select(LoyaltyCard).where(LoyaltyCard.id == card_id))
+    card = result.scalar_one_or_none()
+    if not card:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    business = await db.get(Business, card.business_id)
+    customer = await db.get(Customer, card.customer_id)
+
+    from app.services.qr_service import build_card_url
+    qr_url = build_card_url(card.id)
+
+    wallet_url = await create_or_update_pass(
+        card_id=str(card.id),
+        customer_phone=customer.phone,
+        customer_name=customer.name or customer.phone,
+        business_name=business.name,
+        stamp_count=card.stamp_count,
+        stamp_goal=business.stamp_goal,
+        reward_description=business.reward_description,
+        qr_url=qr_url,
+    )
+
+    if not wallet_url:
+        raise HTTPException(status_code=500, detail="Failed to generate wallet pass")
+
+    return {"wallet_url": wallet_url}
