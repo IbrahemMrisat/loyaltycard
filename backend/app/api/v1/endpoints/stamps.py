@@ -35,6 +35,7 @@ from app.models.all_models import (
 )
 from app.schemas.all_schemas import RedeemResponse, ScanQRRequest, StampResponse
 from app.services import qr_service, sms_service
+from app.services.wallet_service import create_or_update_pass as update_wallet
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/stamps", tags=["stamps"])
@@ -45,25 +46,12 @@ router = APIRouter(prefix="/stamps", tags=["stamps"])
 @router.post("", response_model=StampResponse, status_code=status.HTTP_201_CREATED)
 async def add_stamp(
     payload: ScanQRRequest,
-    actor: ActiveBusinessUser,           # (user, business) tuple
+    actor: ActiveBusinessUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """
-    Core stamp endpoint — called by business app after QR scan.
-
-    Flow:
-    1. Verify QR token signature
-    2. Load loyalty card + customer + business
-    3. Guard: card not already full (must redeem first)
-    4. Increment stamp count
-    5. If stamp goal reached → mark reward ready
-    6. Write transaction log
-    7. Send SMS to customer (non-blocking — failure doesn't fail the stamp)
-    8. Return updated card state
-    """
     current_user, business = actor
 
-    # 1. Verify token — rejects any tampered QR
+    # 1. Verify token
     card_id_str = verify_qr_token(payload.qr_token)
     if not card_id_str:
         log.warning("invalid_qr_token", token=payload.qr_token[:20], business_id=str(business.id))
@@ -74,11 +62,11 @@ async def add_stamp(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed QR token")
 
-    # 2. Load card with customer
+    # 2. Load card
     result = await db.execute(
         select(LoyaltyCard)
         .where(LoyaltyCard.id == card_id)
-        .where(LoyaltyCard.business_id == business.id)   # card must belong to THIS business
+        .where(LoyaltyCard.business_id == business.id)
     )
     card = result.scalar_one_or_none()
 
@@ -113,7 +101,7 @@ async def add_stamp(
         stamp_count_after=card.stamp_count,
     )
     db.add(txn)
-    await db.flush()  # gets txn.id without committing
+    await db.flush()
 
     log.info(
         "stamp_added",
@@ -128,14 +116,13 @@ async def add_stamp(
     if not customer.sms_opted_out:
         card_url = qr_service.build_card_url(card.id)
         remaining = business.stamp_goal - card.stamp_count
-        
-        # Only send at meaningful milestones
+
         should_send = (
-            card.stamp_count == 1 or          # first stamp
-            remaining == 1 or                  # one away from reward
-            card.stamp_count == business.stamp_goal  # reward ready
+            card.stamp_count == 1 or
+            remaining == 1 or
+            card.stamp_count == business.stamp_goal
         )
-        
+
         if should_send:
             if card.stamp_count == business.stamp_goal:
                 message = sms_service.msg_reward_ready(business.name, card_url)
@@ -154,6 +141,21 @@ async def add_stamp(
                 twilio_sid=twilio_sid if success else None,
                 status=SmsStatus.sent if success else SmsStatus.failed,
             ))
+
+    # 7. Update Google Wallet pass (non-blocking)
+    try:
+        await update_wallet(
+            card_id=str(card.id),
+            customer_phone=customer.phone,
+            customer_name=customer.name or customer.phone,
+            business_name=business.name,
+            stamp_count=card.stamp_count,
+            stamp_goal=business.stamp_goal,
+            reward_description=business.reward_description,
+            qr_url=qr_service.build_card_url(card.id),
+        )
+    except Exception as e:
+        log.warning("wallet_update_failed", error=str(e))
 
     return StampResponse(
         stamp_count=card.stamp_count,
@@ -174,10 +176,6 @@ async def redeem_reward(
     actor: ActiveBusinessUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """
-    Redeems a completed loyalty card. Resets stamp count to 0.
-    Only callable when card is full (stamp_count >= stamp_goal).
-    """
     current_user, business = actor
 
     card_id_str = verify_qr_token(payload.qr_token)
@@ -195,7 +193,6 @@ async def redeem_reward(
     if not card:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Card not found")
 
-    # Guard: card must be full to redeem
     if card.stamp_count < business.stamp_goal:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -235,6 +232,21 @@ async def redeem_reward(
             twilio_sid=twilio_sid if success else None,
             status=SmsStatus.sent if success else SmsStatus.failed,
         ))
+
+    # Update Google Wallet pass — reset to 0 stamps (non-blocking)
+    try:
+        await update_wallet(
+            card_id=str(card.id),
+            customer_phone=customer.phone,
+            customer_name=customer.name or customer.phone,
+            business_name=business.name,
+            stamp_count=0,
+            stamp_goal=business.stamp_goal,
+            reward_description=business.reward_description,
+            qr_url=qr_service.build_card_url(card.id),
+        )
+    except Exception as e:
+        log.warning("wallet_update_failed", error=str(e))
 
     return RedeemResponse(
         redeemed=True,
