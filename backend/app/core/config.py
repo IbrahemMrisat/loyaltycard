@@ -29,9 +29,10 @@ class Settings(BaseSettings):
         "127.0.0.1",
         "api.loyal-ly.com",
         "loyaltycard-production-402e.up.railway.app",
-        "https://loyaltycard-omega.vercel.app",
-        "https://loyal-ly.com",
-        "https://loyaltycard-9bny-three.vercel.app"
+        "loyaltycard-omega.vercel.app",
+        "app.loyal-ly.com",
+        "admin.loyal-ly.com",
+        "loyaltycard-9bny-three.vercel.app"
     ]
 
     # ── Database ─────────────────────────────────────────
