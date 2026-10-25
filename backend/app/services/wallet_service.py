@@ -57,7 +57,7 @@ def ensure_loyalty_class(
     insert_body = {
         "id": class_id,
         "issuerName": "Loyally",
-        "reviewStatus": "underReview",
+        "reviewStatus": "approved",
         "programName": business_name,
         "hexBackgroundColor": resolved_bg,
         "programLogo": {
@@ -187,7 +187,7 @@ def generate_wallet_jwt(loyalty_object: dict) -> str:
     claims = {
         "iss": credentials_info["client_email"],
         "aud": "google",
-        "origins": ["https://loyaltycard-omega.vercel.app"],
+        "origins": ["https://app.loyal-ly.com"],
         "iat": int(time.time()),
         "typ": "savetowallet",
         "payload": {
