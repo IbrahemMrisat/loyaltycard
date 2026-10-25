@@ -34,6 +34,15 @@ class Settings(BaseSettings):
         "admin.loyal-ly.com",
         "loyaltycard-9bny-three.vercel.app"
     ]
+    ALLOWED_ORIGINS: List[str] = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://loyaltycard-omega.vercel.app",
+    "https://loyaltycard-9bny-three.vercel.app",
+    "https://app.loyal-ly.com",
+    "https://admin.loyal-ly.com",
+    "https://loyal-ly.com",
+    ]
 
     # ── Database ─────────────────────────────────────────
     DATABASE_URL: str
