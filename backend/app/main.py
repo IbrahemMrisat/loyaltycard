@@ -61,16 +61,11 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
-        "https://loyaltycard-omega.vercel.app",
-        "https://loyal-ly.com",
-        "http://localhost",
-        "https://loyaltycard-9bny-three.vercel.app"
-            ],
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type"],
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
     )
 
     # ── Rate Limiting ─────────────────────────────────────────────────────────
