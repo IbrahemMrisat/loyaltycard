@@ -10,23 +10,17 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
 
 from app.api.v1.endpoints import admin, auth, businesses, cards, stamps, webhooks
 from app.core.config import settings
+from app.core.limiter import limiter  # noqa: F401 — re-exported for convenience
 from app.db.session import engine
 from app.models.all_models import Base   # noqa: F401 — ensures models are registered
 
 log = structlog.get_logger(__name__)
-
-# ── Rate Limiter ─────────────────────────────────────────────────────────────
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"],
-)
 
 
 # ── Lifespan (startup / shutdown) ────────────────────────────────────────────
@@ -61,11 +55,11 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type"],
     )
 
     # ── Rate Limiting ─────────────────────────────────────────────────────────

@@ -29,19 +29,19 @@ class Settings(BaseSettings):
         "127.0.0.1",
         "api.loyal-ly.com",
         "loyaltycard-production-402e.up.railway.app",
-        "loyaltycard-omega.vercel.app",
         "app.loyal-ly.com",
         "admin.loyal-ly.com",
-        "loyaltycard-9bny-three.vercel.app"
+        "loyal-ly.com",
     ]
+
     ALLOWED_ORIGINS: List[str] = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "https://loyaltycard-omega.vercel.app",
-    "https://loyaltycard-9bny-three.vercel.app",
-    "https://app.loyal-ly.com",
-    "https://admin.loyal-ly.com",
-    "https://loyal-ly.com",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://loyaltycard-omega.vercel.app",
+        "https://loyaltycard-9bny-three.vercel.app",
+        "https://app.loyal-ly.com",
+        "https://admin.loyal-ly.com",
+        "https://loyal-ly.com",
     ]
 
     # ── Database ─────────────────────────────────────────
