@@ -27,10 +27,10 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: List[str] = [
         "localhost",
         "127.0.0.1",
-        "api.listenonroads.com",
+        "api.loyal-ly.com",
         "loyaltycard-production-402e.up.railway.app",
         "https://loyaltycard-omega.vercel.app",
-        "https://listenonroads.com",
+        "https://loyal-ly.com",
         "https://loyaltycard-9bny-three.vercel.app"
     ]
 

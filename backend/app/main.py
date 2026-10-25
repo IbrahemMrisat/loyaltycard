@@ -64,7 +64,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[
         "https://loyaltycard-omega.vercel.app",
-        "https://listenonroads.com",
+        "https://loyal-ly.com",
         "http://localhost",
         "https://loyaltycard-9bny-three.vercel.app"
             ],
