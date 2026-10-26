@@ -173,3 +173,16 @@ async def list_sms_logs(
         }
         for l in logs
     ]
+
+
+@router.post("/cards/{card_id}/expire-wallet-object")
+async def expire_wallet_object(
+    card_id: str,
+    admin: AdminUser,
+):
+    """Expire a wallet object so it gets recreated fresh (removes test watermark)."""
+    from app.services.wallet_service import expire_wallet_object as _expire
+    found = _expire(card_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Wallet object not found")
+    return {"status": "expired", "card_id": card_id}

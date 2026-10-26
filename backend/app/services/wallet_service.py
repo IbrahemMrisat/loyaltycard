@@ -57,7 +57,7 @@ def ensure_loyalty_class(
     insert_body = {
         "id": class_id,
         "issuerName": "Loyally",
-        "reviewStatus": "approved",
+        "reviewStatus": "underReview",
         "programName": business_name,
         "hexBackgroundColor": resolved_bg,
         "programLogo": {
@@ -71,11 +71,11 @@ def ensure_loyalty_class(
         },
     }
 
-# Patch body — upgrade reviewStatus to approved now that issuer is approved
+    # Patch body — include reviewStatus to upgrade underReview → approved
     patch_body = {
+        "reviewStatus": "approved",
         "programName": business_name,
         "hexBackgroundColor": resolved_bg,
-        "reviewStatus": "approved",
         "programLogo": {
             "sourceUri": {"uri": resolved_logo},
             "contentDescription": {
@@ -201,6 +201,28 @@ def generate_wallet_jwt(loyalty_object: dict) -> str:
         credentials_info["private_key"],
         algorithm="RS256",
     )
+
+
+def expire_wallet_object(card_id: str) -> bool:
+    """
+    Expire an existing wallet object so it gets recreated fresh on next save.
+    Useful after a class moves from underReview → approved to remove test watermark.
+    Returns True if expired, False if not found.
+    """
+    client = get_wallet_client()
+    object_id = f"{settings.GOOGLE_WALLET_ISSUER_ID}.card_{card_id.replace('-', '_')}"
+    try:
+        client.loyaltyobject().get(resourceId=object_id).execute()
+        client.loyaltyobject().patch(
+            resourceId=object_id,
+            body={"state": "expired"},
+        ).execute()
+        log.info("wallet_object_expired", card_id=card_id)
+        return True
+    except HttpError as e:
+        if e.resp.status == 404:
+            return False
+        raise
 
 
 async def create_or_update_pass(
