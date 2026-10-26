@@ -71,10 +71,11 @@ def ensure_loyalty_class(
         },
     }
 
-    # Patch body — everything EXCEPT reviewStatus (Google rejects patching an approved class)
+# Patch body — upgrade reviewStatus to approved now that issuer is approved
     patch_body = {
         "programName": business_name,
         "hexBackgroundColor": resolved_bg,
+        "reviewStatus": "approved",
         "programLogo": {
             "sourceUri": {"uri": resolved_logo},
             "contentDescription": {
