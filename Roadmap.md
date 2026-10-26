@@ -514,4 +514,4 @@ Move all badge SVGs to: `frontend/loyalty-pwa/public/badges/`
 | 2026-10-26 | Domain: loyal-ly.com (not loyal-ly.app) — already live with Cloudflare DNS |
 | 2026-10-26 | Contact email: contact@loyal-ly.com — Cloudflare Email Routing configured |
 | 2026-10-26 | Landing page: contact form wired to Web3Forms pending access key |
-| 2026-10-26 | Google Wallet support ticket submitted — awaiting publishing access approval |
+| 2026-10-26 | Google Wallet support ticket submitted — awaiting publishing access approval | 
