@@ -28,7 +28,7 @@ class Settings(BaseSettings):
         "localhost",
         "127.0.0.1",
         "api.loyal-ly.com",
-        "loyaltycard-production-402e.up.railway.app",
+        "loyaltycard-dev.up.railway.app",
         "loyaltycard-omega.vercel.app",
         "app.loyal-ly.com",
         "admin.loyal-ly.com",
