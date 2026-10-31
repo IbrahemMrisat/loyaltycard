@@ -71,7 +71,7 @@ def ensure_loyalty_class(
         },
     }
 
-    # Patch body — include reviewStatus to upgrade underReview → approved
+    # Patch body — reviewStatus is read-only via API, cannot be patched
     patch_body = {
         "reviewStatus": "approved",
         "programName": business_name,
