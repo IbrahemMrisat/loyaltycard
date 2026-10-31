@@ -3,7 +3,7 @@ app/api/v1/endpoints/auth.py
 """
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy import select
@@ -19,6 +19,7 @@ from app.core.security import (
     verify_password,
 )
 from app.db.session import get_db
+from app.core.limiter import limiter
 from app.models.all_models import User
 from app.schemas.all_schemas import LoginRequest, OKResponse, RefreshRequest, TokenResponse
 
@@ -27,7 +28,9 @@ bearer_scheme = HTTPBearer()
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     payload: LoginRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -54,7 +57,9 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("20/minute")
 async def refresh_token(
+    request: Request,
     payload: RefreshRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):

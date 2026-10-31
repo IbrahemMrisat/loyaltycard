@@ -5,26 +5,27 @@ Public endpoints for customers to view their card.
 No JWT — authenticated via the signed QR token in the URL.
 This is what the SMS link points to.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
-from fastapi import Depends
 import uuid
 
 from app.core.security import verify_qr_token
 from app.db.session import get_db
+from app.core.limiter import limiter
 from app.models.all_models import Business, Customer, LoyaltyCard, Transaction
 from app.schemas.all_schemas import LoyaltyCardResponse, TransactionResponse
 from app.services.qr_service import build_card_url
 from app.services.wallet_service import create_or_update_pass
-from app.models.all_models import Business, Customer
 
 router = APIRouter(prefix="/cards", tags=["cards"])
 
 
 @router.get("/{qr_token}", response_model=LoyaltyCardResponse)
+@limiter.limit("60/minute")
 async def get_card_by_token(
+    request: Request,
     qr_token: str,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -68,7 +69,9 @@ async def get_card_by_token(
 
 
 @router.get("/{qr_token}/history", response_model=list[TransactionResponse])
+@limiter.limit("30/minute")
 async def get_card_history(
+    request: Request,
     qr_token: str,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -90,7 +93,9 @@ async def get_card_history(
 
 
 @router.get("/{qr_token}/wallet")
+@limiter.limit("20/minute")
 async def get_wallet_pass(
+    request: Request,
     qr_token: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     ):

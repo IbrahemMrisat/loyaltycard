@@ -15,11 +15,12 @@ import uuid
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import ActiveBusinessUser
+from app.core.limiter import limiter
 from app.core.security import verify_qr_token
 from app.db.session import get_db
 from app.models.all_models import (
@@ -44,7 +45,9 @@ router = APIRouter(prefix="/stamps", tags=["stamps"])
 # ── POST /stamps ──────────────────────────────────────────────────────────────
 
 @router.post("", response_model=StampResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/minute")
 async def add_stamp(
+    request: Request,
     payload: ScanQRRequest,
     actor: ActiveBusinessUser,
     db: Annotated[AsyncSession, Depends(get_db)],
