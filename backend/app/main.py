@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     # This is here for local dev convenience only
     if not settings.is_production:
         async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(Base.metadata.create_all, checkfirst=True)
         log.info("dev_tables_created")
     yield
     log.info("shutdown")
